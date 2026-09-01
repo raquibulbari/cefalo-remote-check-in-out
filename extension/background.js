@@ -29,6 +29,7 @@ if (typeof module !== 'undefined') {
 if (typeof chrome !== 'undefined') {
   const STORAGE_KEYS = { CHECKED_IN: 'checkedIn', CHECK_IN_TIME: 'checkInTime', LOG: 'log' };
   const MAX_LOG_ENTRIES = 30;
+  const BADGE_ALARM = 'badge-tick';
   const TARGET_URL_PATTERNS = ['https://hrportal.cefalolab.com/attendance/*', 'http://localhost/*'];
   const TARGET_URL = 'https://hrportal.cefalolab.com/attendance/';
 
@@ -51,6 +52,17 @@ if (typeof chrome !== 'undefined') {
     const { log = [] } = await chrome.storage.local.get(STORAGE_KEYS.LOG);
     const next = appendLogEntry(log, entry, MAX_LOG_ENTRIES);
     await chrome.storage.local.set({ [STORAGE_KEYS.LOG]: next });
+  }
+
+  async function updateBadge() {
+    const state = await getState();
+    if (!state.checkedIn) {
+      await chrome.action.setBadgeText({ text: '' });
+      return;
+    }
+    const elapsed = Date.now() - state.checkInTime;
+    await chrome.action.setBadgeText({ text: formatBadgeElapsed(elapsed) });
+    await chrome.action.setBadgeBackgroundColor({ color: '#2e7d32' });
   }
 
   async function findOrCreateTargetTab() {
@@ -110,6 +122,7 @@ if (typeof chrome !== 'undefined') {
       await setState({ checkedIn: false, checkInTime: null });
       await appendLog({ type: 'checkout', timestamp: now });
     }
+    await updateBadge();
     return { ok: true };
   }
 
@@ -120,4 +133,14 @@ if (typeof chrome !== 'undefined') {
     }
     return false;
   });
+
+  chrome.alarms.create(BADGE_ALARM, { periodInMinutes: 1 });
+  chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === BADGE_ALARM) {
+      updateBadge();
+    }
+  });
+
+  chrome.runtime.onInstalled.addListener(updateBadge);
+  chrome.runtime.onStartup.addListener(updateBadge);
 }
