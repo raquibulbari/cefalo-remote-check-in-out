@@ -38,10 +38,15 @@ actionBtn.addEventListener('click', async () => {
   errorEl.textContent = '';
   actionBtn.disabled = true;
   const action = actionBtn.textContent === 'Check In' ? 'checkin' : 'checkout';
-  const response = await chrome.runtime.sendMessage({ action });
-  actionBtn.disabled = false;
-  if (!response || !response.ok) {
-    errorEl.textContent = (response && response.error) || 'Something went wrong';
+  try {
+    const response = await chrome.runtime.sendMessage({ action });
+    if (!response || !response.ok) {
+      errorEl.textContent = (response && response.error) || 'Something went wrong';
+    }
+  } catch (err) {
+    errorEl.textContent = err.message || 'Could not reach the extension background';
+  } finally {
+    actionBtn.disabled = false;
   }
 });
 
