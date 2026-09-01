@@ -2,8 +2,10 @@ const actionBtn = document.getElementById('action-btn');
 const timerEl = document.getElementById('timer');
 const errorEl = document.getElementById('error');
 const viewLogLink = document.getElementById('view-log');
+const clearSessionLink = document.getElementById('clear-session');
 
 let tickHandle = null;
+let clearArmed = false;
 
 function formatTimer(ms) {
   const totalSeconds = Math.floor(ms / 1000);
@@ -14,8 +16,17 @@ function formatTimer(ms) {
   return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
 }
 
+function resetClearLink() {
+  clearArmed = false;
+  clearSessionLink.textContent = 'Already checked out? Stop the timer';
+}
+
 function render(state) {
   clearInterval(tickHandle);
+  clearSessionLink.classList.toggle('visible', Boolean(state.checkedIn));
+  if (!state.checkedIn) {
+    resetClearLink();
+  }
   if (state.checkedIn) {
     actionBtn.textContent = 'Check Out';
     const tick = () => {
@@ -47,6 +58,27 @@ actionBtn.addEventListener('click', async () => {
     errorEl.textContent = err.message || 'Could not reach the extension background';
   } finally {
     actionBtn.disabled = false;
+  }
+});
+
+// Two clicks, because this writes a check-out entry to the log and there is no
+// undo. The first click arms it, the second commits.
+clearSessionLink.addEventListener('click', async (event) => {
+  event.preventDefault();
+  errorEl.textContent = '';
+  if (!clearArmed) {
+    clearArmed = true;
+    clearSessionLink.textContent = 'Confirm: log check-out now';
+    return;
+  }
+  resetClearLink();
+  try {
+    const response = await chrome.runtime.sendMessage({ action: 'clearsession' });
+    if (!response || !response.ok) {
+      errorEl.textContent = (response && response.error) || 'Could not stop the timer';
+    }
+  } catch (err) {
+    errorEl.textContent = err.message || 'Could not reach the extension background';
   }
 });
 
