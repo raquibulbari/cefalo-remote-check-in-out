@@ -61,4 +61,11 @@ if (typeof chrome !== 'undefined') {
   });
 
   reportObservedStatus();
+
+  let observerTimer = null;
+  const observer = new MutationObserver(() => {
+    clearTimeout(observerTimer);
+    observerTimer = setTimeout(reportObservedStatus, 300);
+  });
+  observer.observe(document.body, { childList: true, subtree: true, characterData: true });
 }
