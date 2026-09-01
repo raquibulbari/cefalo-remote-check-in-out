@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { formatBadgeElapsed, reconcile, appendLogEntry } = require('../extension/background.js');
+const { formatBadgeElapsed, reconcile, appendLogEntry, logEntryForTransition } = require('../extension/background.js');
 
 test('formatBadgeElapsed: under an hour shows minutes', () => {
   assert.equal(formatBadgeElapsed(0), '0m');
@@ -44,4 +44,19 @@ test('appendLogEntry: prepends and caps at max', () => {
   const result = appendLogEntry(log, { n: 3 }, 2);
   assert.deepEqual(result, [{ n: 3 }, { n: 1 }]);
   assert.deepEqual(log, [{ n: 1 }, { n: 2 }]);
+});
+
+test('logEntryForTransition: checked-out to checked-in returns a checkin entry with checkInTime', () => {
+  const entry = logEntryForTransition(false, true, 1000, 2000);
+  assert.deepEqual(entry, { type: 'checkin', timestamp: 1000 });
+});
+
+test('logEntryForTransition: checked-in to checked-out returns a checkout entry with now', () => {
+  const entry = logEntryForTransition(true, false, 1000, 2000);
+  assert.deepEqual(entry, { type: 'checkout', timestamp: 2000 });
+});
+
+test('logEntryForTransition: no change returns null', () => {
+  assert.equal(logEntryForTransition(true, true, 1000, 2000), null);
+  assert.equal(logEntryForTransition(false, false, 1000, 2000), null);
 });

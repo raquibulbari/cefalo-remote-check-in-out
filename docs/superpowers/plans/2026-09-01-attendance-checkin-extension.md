@@ -531,7 +531,7 @@ if (typeof chrome !== 'undefined') {
 
 - [ ] **Step 2: Re-run existing unit tests to confirm nothing broke**
 
-Run: `node --test tests/`
+Run: `node --test tests/*.test.js`
 Expected: PASS (all tests from Tasks 2 and 4)
 
 - [ ] **Step 3: Manual verification**
@@ -634,7 +634,7 @@ Add alarm registration at the very end of the `if (typeof chrome !== 'undefined'
 
 - [ ] **Step 2: Re-run existing unit tests to confirm nothing broke**
 
-Run: `node --test tests/`
+Run: `node --test tests/*.test.js`
 Expected: PASS
 
 - [ ] **Step 3: Manual verification**
@@ -697,7 +697,7 @@ to:
 
 - [ ] **Step 2: Re-run existing unit tests to confirm nothing broke**
 
-Run: `node --test tests/`
+Run: `node --test tests/*.test.js`
 Expected: PASS
 
 - [ ] **Step 3: Manual verification**
@@ -961,7 +961,7 @@ Use the Agent tool with `subagent_type: general-purpose` (a brand-new agent, not
 
 - [ ] **Step 2: Triage findings**
 
-For each finding: confirm it's real (reproduce or reason through it), then either fix it in the relevant file and re-run the affected unit tests (`node --test tests/`), or note explicitly why it's not applicable. Do not accept vague feedback without a concrete file:line pointer.
+For each finding: confirm it's real (reproduce or reason through it), then either fix it in the relevant file and re-run the affected unit tests (`node --test tests/*.test.js`), or note explicitly why it's not applicable. Do not accept vague feedback without a concrete file:line pointer.
 
 - [ ] **Step 3: Commit any fixes**
 
@@ -988,7 +988,7 @@ Use the Agent tool with a fresh `general-purpose` agent (with access to Chrome a
 
 - [ ] **Step 2: Address any failures**
 
-For each reported failure, reproduce it, fix the responsible file, re-run relevant unit tests (`node --test tests/`), and manually re-verify that specific behavior before moving on.
+For each reported failure, reproduce it, fix the responsible file, re-run relevant unit tests (`node --test tests/*.test.js`), and manually re-verify that specific behavior before moving on.
 
 - [ ] **Step 3: Commit any fixes**
 
