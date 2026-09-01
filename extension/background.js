@@ -163,6 +163,27 @@ if (typeof chrome !== 'undefined') {
     }
   }
 
+  // Detection reads the portal's DOM, so it can always miss a transition. This
+  // is the escape hatch: it closes the session at a caller-supplied time and
+  // writes the matching log entry so the log does not keep an open check-in.
+  async function clearSession(checkoutTime) {
+    let cleared = false;
+    await serialize(async () => {
+      const state = await getState();
+      if (!state.checkedIn) {
+        return;
+      }
+      const entry = logEntryForTransition(true, false, state.checkInTime, checkoutTime);
+      await setState({ checkedIn: false, checkInTime: null });
+      if (entry) {
+        await appendLog(entry);
+      }
+      cleared = true;
+    });
+    await updateBadge();
+    return { ok: true, cleared };
+  }
+
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.action === 'checkin') {
       performAction()
@@ -172,6 +193,12 @@ if (typeof chrome !== 'undefined') {
     }
     if (message.action === 'gotocheckout') {
       navigateToTarget().then(sendResponse);
+      return true;
+    }
+    if (message.action === 'clearsession') {
+      clearSession(message.checkoutTime ?? Date.now())
+        .then(sendResponse)
+        .catch((err) => sendResponse({ ok: false, error: err.message || 'unexpected error' }));
       return true;
     }
     if (message.type === 'observed') {
