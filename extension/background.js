@@ -152,7 +152,11 @@ if (typeof chrome !== 'undefined') {
     return false;
   });
 
-  chrome.alarms.create(BADGE_ALARM, { periodInMinutes: 1 });
+  chrome.alarms.get(BADGE_ALARM, (existing) => {
+    if (!existing) {
+      chrome.alarms.create(BADGE_ALARM, { periodInMinutes: 1 });
+    }
+  });
   chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === BADGE_ALARM) {
       updateBadge();

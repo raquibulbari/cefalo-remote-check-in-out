@@ -12,11 +12,26 @@ if (typeof module !== 'undefined') {
 }
 
 if (typeof chrome !== 'undefined') {
+  function isElementVisible(node) {
+    const style = window.getComputedStyle(node);
+    if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity || '1') === 0) {
+      return false;
+    }
+    if (node.offsetParent !== null) {
+      return true;
+    }
+    if (style.position === 'fixed') {
+      const rect = node.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    }
+    return false;
+  }
+
   function queryClickableElements() {
     const selector = 'button, a, input[type="submit"], [role="button"]';
     return Array.from(document.querySelectorAll(selector)).map((node) => ({
       text: node.textContent || node.value || '',
-      visible: !!node.offsetParent,
+      visible: isElementVisible(node),
       node,
     }));
   }
@@ -24,9 +39,9 @@ if (typeof chrome !== 'undefined') {
   function reportObservedStatus() {
     const elements = queryClickableElements();
     if (pickVisibleMatch(elements, 'checkout')) {
-      chrome.runtime.sendMessage({ type: 'observed', status: 'checked-in' });
+      chrome.runtime.sendMessage({ type: 'observed', status: 'checked-in' }).catch(() => {});
     } else if (pickVisibleMatch(elements, 'checkin')) {
-      chrome.runtime.sendMessage({ type: 'observed', status: 'checked-out' });
+      chrome.runtime.sendMessage({ type: 'observed', status: 'checked-out' }).catch(() => {});
     }
   }
 
@@ -36,7 +51,7 @@ if (typeof chrome !== 'undefined') {
       const match = pickVisibleMatch(elements, message.want);
       if (match) {
         match.node.click();
-        sendResponse({ ok: true });
+        setTimeout(() => sendResponse({ ok: true }), 250);
       } else {
         sendResponse({ ok: false, error: 'button not found' });
       }

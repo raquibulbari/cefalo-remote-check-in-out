@@ -19,7 +19,11 @@ if (typeof chrome !== 'undefined') {
     for (const entry of log) {
       const row = formatRow(entry);
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${row.type}</td><td>${row.date}</td><td>${row.time}</td>`;
+      for (const value of [row.type, row.date, row.time]) {
+        const td = document.createElement('td');
+        td.textContent = value;
+        tr.appendChild(td);
+      }
       tbody.appendChild(tr);
     }
   }
