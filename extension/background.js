@@ -107,11 +107,11 @@ if (typeof chrome !== 'undefined') {
     return tab;
   }
 
-  async function performAction(want) {
+  async function performAction() {
     const tab = await findOrCreateTargetTab();
     let response;
     try {
-      response = await chrome.tabs.sendMessage(tab.id, { command: 'click', want });
+      response = await chrome.tabs.sendMessage(tab.id, { command: 'click', want: 'checkin' });
     } catch (err) {
       return { ok: false, error: err.message || 'could not reach the page' };
     }
@@ -119,20 +119,28 @@ if (typeof chrome !== 'undefined') {
       return { ok: false, error: (response && response.error) || 'no response from page' };
     }
     const now = Date.now();
-    if (want === 'checkin') {
-      await setState({ checkedIn: true, checkInTime: now });
-      await appendLog({ type: 'checkin', timestamp: now });
-    } else {
-      await setState({ checkedIn: false, checkInTime: null });
-      await appendLog({ type: 'checkout', timestamp: now });
-    }
+    await setState({ checkedIn: true, checkInTime: now });
+    await appendLog({ type: 'checkin', timestamp: now });
     await updateBadge();
     return { ok: true };
   }
 
+  async function navigateToTarget() {
+    try {
+      await findOrCreateTargetTab();
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message || 'could not open the page' };
+    }
+  }
+
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message.action === 'checkin' || message.action === 'checkout') {
-      performAction(message.action).then(sendResponse);
+    if (message.action === 'checkin') {
+      performAction().then(sendResponse);
+      return true;
+    }
+    if (message.action === 'gotocheckout') {
+      navigateToTarget().then(sendResponse);
       return true;
     }
     if (message.type === 'observed') {
@@ -142,6 +150,11 @@ if (typeof chrome !== 'undefined') {
           const next = reconcile(state, message.status, Date.now);
           if (next !== state) {
             await setState(next);
+            if (next.checkedIn && !state.checkedIn) {
+              await appendLog({ type: 'checkin', timestamp: next.checkInTime });
+            } else if (!next.checkedIn && state.checkedIn) {
+              await appendLog({ type: 'checkout', timestamp: Date.now() });
+            }
             await updateBadge();
           }
         } catch (err) {

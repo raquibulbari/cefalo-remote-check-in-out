@@ -37,7 +37,7 @@ async function loadState() {
 actionBtn.addEventListener('click', async () => {
   errorEl.textContent = '';
   actionBtn.disabled = true;
-  const action = actionBtn.textContent === 'Check In' ? 'checkin' : 'checkout';
+  const action = actionBtn.textContent === 'Check In' ? 'checkin' : 'gotocheckout';
   try {
     const response = await chrome.runtime.sendMessage({ action });
     if (!response || !response.ok) {
