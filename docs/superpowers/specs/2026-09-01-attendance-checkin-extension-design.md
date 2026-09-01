@@ -85,10 +85,15 @@ Responsibilities:
    - Page shows checked-in, extension thought checked-out → adopt
      checked-in; if `checkInTime` is null, set it to "now" (best
      effort — the true original check-in time isn't recoverable from
-     page state alone). This does **not** write a log entry, since it
-     wasn't an action the extension performed.
+     page state alone). This **does** write a `checkin` log entry,
+     since (after the popup's "Check Out" button was changed to just
+     navigate to the page rather than auto-click) this reconciliation
+     path is a real detected transition, not merely re-confirming an
+     action the extension already logged elsewhere.
    - Page shows checked-out, extension thought checked-in → clear
-     `checkedIn`/`checkInTime`. Also no log entry (same reasoning).
+     `checkedIn`/`checkInTime`, and write a `checkout` log entry. This
+     is now the *only* path that logs a checkout, since checking out
+     is no longer an action the extension performs directly.
 
 3. **Badge.** A `chrome.alarms` timer (period: 1 minute, the MV3
    minimum) recomputes elapsed time from `checkInTime` and sets the

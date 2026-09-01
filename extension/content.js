@@ -36,12 +36,19 @@ if (typeof chrome !== 'undefined') {
     }));
   }
 
+  let lastReportedStatus = null;
+
   function reportObservedStatus() {
     const elements = queryClickableElements();
+    let status = null;
     if (pickVisibleMatch(elements, 'checkout')) {
-      chrome.runtime.sendMessage({ type: 'observed', status: 'checked-in' }).catch(() => {});
+      status = 'checked-in';
     } else if (pickVisibleMatch(elements, 'checkin')) {
-      chrome.runtime.sendMessage({ type: 'observed', status: 'checked-out' }).catch(() => {});
+      status = 'checked-out';
+    }
+    if (status && status !== lastReportedStatus) {
+      lastReportedStatus = status;
+      chrome.runtime.sendMessage({ type: 'observed', status }).catch(() => {});
     }
   }
 
@@ -63,9 +70,22 @@ if (typeof chrome !== 'undefined') {
   reportObservedStatus();
 
   let observerTimer = null;
+  let observerLastRun = 0;
+  const OBSERVER_DEBOUNCE_MS = 300;
+  const OBSERVER_MAX_WAIT_MS = 2000;
   const observer = new MutationObserver(() => {
+    const now = Date.now();
+    if (now - observerLastRun >= OBSERVER_MAX_WAIT_MS) {
+      clearTimeout(observerTimer);
+      observerLastRun = now;
+      reportObservedStatus();
+      return;
+    }
     clearTimeout(observerTimer);
-    observerTimer = setTimeout(reportObservedStatus, 300);
+    observerTimer = setTimeout(() => {
+      observerLastRun = Date.now();
+      reportObservedStatus();
+    }, OBSERVER_DEBOUNCE_MS);
   });
   observer.observe(document.body, { childList: true, subtree: true, characterData: true });
 }

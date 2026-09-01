@@ -22,16 +22,39 @@ function appendLogEntry(log, entry, max) {
   return [entry, ...log].slice(0, max);
 }
 
+function logEntryForTransition(prevCheckedIn, nextCheckedIn, checkInTime, now) {
+  if (nextCheckedIn && !prevCheckedIn) {
+    return { type: 'checkin', timestamp: checkInTime };
+  }
+  if (!nextCheckedIn && prevCheckedIn) {
+    return { type: 'checkout', timestamp: now };
+  }
+  return null;
+}
+
 if (typeof module !== 'undefined') {
-  module.exports = { formatBadgeElapsed, reconcile, appendLogEntry };
+  module.exports = { formatBadgeElapsed, reconcile, appendLogEntry, logEntryForTransition };
 }
 
 if (typeof chrome !== 'undefined') {
   const STORAGE_KEYS = { CHECKED_IN: 'checkedIn', CHECK_IN_TIME: 'checkInTime', LOG: 'log' };
   const MAX_LOG_ENTRIES = 30;
   const BADGE_ALARM = 'badge-tick';
-  const TARGET_URL_PATTERNS = ['https://hrportal.cefalolab.com/attendance/*', 'http://localhost/*'];
+  // Set to true only while developing against the local test-page harness
+  // (test-page/) — when true, the extension will reuse/activate ANY open
+  // localhost tab, which can hijack an unrelated local dev server.
+  const INCLUDE_LOCALHOST_TARGET = false;
+  const TARGET_URL_PATTERNS = INCLUDE_LOCALHOST_TARGET
+    ? ['https://hrportal.cefalolab.com/attendance/*', 'http://localhost/*']
+    : ['https://hrportal.cefalolab.com/attendance/*'];
   const TARGET_URL = 'https://hrportal.cefalolab.com/attendance/';
+
+  let storageQueue = Promise.resolve();
+  function serialize(fn) {
+    const result = storageQueue.then(fn, fn);
+    storageQueue = result.then(() => {}, () => {});
+    return result;
+  }
 
   async function getState() {
     const stored = await chrome.storage.local.get([STORAGE_KEYS.CHECKED_IN, STORAGE_KEYS.CHECK_IN_TIME]);
@@ -119,8 +142,14 @@ if (typeof chrome !== 'undefined') {
       return { ok: false, error: (response && response.error) || 'no response from page' };
     }
     const now = Date.now();
-    await setState({ checkedIn: true, checkInTime: now });
-    await appendLog({ type: 'checkin', timestamp: now });
+    await serialize(async () => {
+      const state = await getState();
+      const entry = logEntryForTransition(state.checkedIn, true, now, now);
+      if (entry) {
+        await setState({ checkedIn: true, checkInTime: now });
+        await appendLog(entry);
+      }
+    });
     await updateBadge();
     return { ok: true };
   }
@@ -136,7 +165,9 @@ if (typeof chrome !== 'undefined') {
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.action === 'checkin') {
-      performAction().then(sendResponse);
+      performAction()
+        .then(sendResponse)
+        .catch((err) => sendResponse({ ok: false, error: err.message || 'unexpected error' }));
       return true;
     }
     if (message.action === 'gotocheckout') {
@@ -146,15 +177,20 @@ if (typeof chrome !== 'undefined') {
     if (message.type === 'observed') {
       (async () => {
         try {
-          const state = await getState();
-          const next = reconcile(state, message.status, Date.now);
-          if (next !== state) {
-            await setState(next);
-            if (next.checkedIn && !state.checkedIn) {
-              await appendLog({ type: 'checkin', timestamp: next.checkInTime });
-            } else if (!next.checkedIn && state.checkedIn) {
-              await appendLog({ type: 'checkout', timestamp: Date.now() });
+          let changed = false;
+          await serialize(async () => {
+            const state = await getState();
+            const next = reconcile(state, message.status, Date.now);
+            if (next !== state) {
+              const entry = logEntryForTransition(state.checkedIn, next.checkedIn, next.checkInTime, Date.now());
+              await setState(next);
+              if (entry) {
+                await appendLog(entry);
+              }
+              changed = true;
             }
+          });
+          if (changed) {
             await updateBadge();
           }
         } catch (err) {
