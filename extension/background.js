@@ -137,11 +137,15 @@ if (typeof chrome !== 'undefined') {
     }
     if (message.type === 'observed') {
       (async () => {
-        const state = await getState();
-        const next = reconcile(state, message.status, Date.now);
-        if (next !== state) {
-          await setState(next);
-          await updateBadge();
+        try {
+          const state = await getState();
+          const next = reconcile(state, message.status, Date.now);
+          if (next !== state) {
+            await setState(next);
+            await updateBadge();
+          }
+        } catch (err) {
+          console.error('Error reconciling observed status:', err);
         }
       })();
     }
