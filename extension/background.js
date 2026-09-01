@@ -64,20 +64,41 @@ if (typeof chrome !== 'undefined') {
     }
     const tab = await chrome.tabs.create({ url: TARGET_URL });
     await new Promise((resolve) => {
-      function listener(tabId, info) {
+      const cleanup = () => {
+        chrome.tabs.onUpdated.removeListener(updateListener);
+        chrome.tabs.onRemoved.removeListener(removedListener);
+        clearTimeout(timer);
+      };
+      function updateListener(tabId, info) {
         if (tabId === tab.id && info.status === 'complete') {
-          chrome.tabs.onUpdated.removeListener(listener);
+          cleanup();
           resolve();
         }
       }
-      chrome.tabs.onUpdated.addListener(listener);
+      function removedListener(tabId) {
+        if (tabId === tab.id) {
+          cleanup();
+          resolve();
+        }
+      }
+      const timer = setTimeout(() => {
+        cleanup();
+        resolve();
+      }, 15000);
+      chrome.tabs.onUpdated.addListener(updateListener);
+      chrome.tabs.onRemoved.addListener(removedListener);
     });
     return tab;
   }
 
   async function performAction(want) {
     const tab = await findOrCreateTargetTab();
-    const response = await chrome.tabs.sendMessage(tab.id, { command: 'click', want });
+    let response;
+    try {
+      response = await chrome.tabs.sendMessage(tab.id, { command: 'click', want });
+    } catch (err) {
+      return { ok: false, error: err.message || 'could not reach the page' };
+    }
     if (!response || !response.ok) {
       return { ok: false, error: (response && response.error) || 'no response from page' };
     }
