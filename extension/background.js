@@ -55,14 +55,18 @@ if (typeof chrome !== 'undefined') {
   }
 
   async function updateBadge() {
-    const state = await getState();
-    if (!state.checkedIn) {
-      await chrome.action.setBadgeText({ text: '' });
-      return;
+    try {
+      const state = await getState();
+      if (!state.checkedIn) {
+        await chrome.action.setBadgeText({ text: '' });
+        return;
+      }
+      const elapsed = Date.now() - state.checkInTime;
+      await chrome.action.setBadgeText({ text: formatBadgeElapsed(elapsed) });
+      await chrome.action.setBadgeBackgroundColor({ color: '#2e7d32' });
+    } catch (err) {
+      console.error('updateBadge failed:', err);
     }
-    const elapsed = Date.now() - state.checkInTime;
-    await chrome.action.setBadgeText({ text: formatBadgeElapsed(elapsed) });
-    await chrome.action.setBadgeBackgroundColor({ color: '#2e7d32' });
   }
 
   async function findOrCreateTargetTab() {
