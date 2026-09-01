@@ -169,6 +169,12 @@ end-to-end, manual + browser-automated:
    the same tab rather than opening a new one), click "Check Out",
    verify the timer stops and a second log entry is recorded, open
    "View Log" and verify both entries render correctly.
+4. Independent review: after implementation and the above pass, a
+   separate agent with no prior context reviews the diff for
+   correctness/quality (code review), and a separate pass verifies
+   the built extension against this spec's behaviors end-to-end
+   (functional review), rather than the implementer self-certifying.
+   The implementation plan spells out these as explicit steps.
 
 ## Known limitations
 
