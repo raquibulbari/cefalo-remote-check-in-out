@@ -135,6 +135,16 @@ if (typeof chrome !== 'undefined') {
       performAction(message.action).then(sendResponse);
       return true;
     }
+    if (message.type === 'observed') {
+      (async () => {
+        const state = await getState();
+        const next = reconcile(state, message.status, Date.now);
+        if (next !== state) {
+          await setState(next);
+          await updateBadge();
+        }
+      })();
+    }
     return false;
   });
 
